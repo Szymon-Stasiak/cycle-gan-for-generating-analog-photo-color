@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import DataLoader
-from datasets.color_dataset import UnalignedColorDataset
+from my_datasets.color_dataset import UnalignedColorDataset
 from model.color_cyclegan_model import ColorCycleGANModel
 import argparse
 import os

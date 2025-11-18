@@ -4,7 +4,7 @@ import string
 import cv2
 
 # Ścieżka do folderu z plikami .jpg
-folder_path = "./trainB"
+folder_path = "./my_scans/"
 
 # Funkcja do generowania unikalnych 8-znakowych nazw
 def generate_unique_name(existing_names):
@@ -26,8 +26,9 @@ for filename in os.listdir(folder_path):
             print(f"Nie udało się wczytać pliku {filename}, pomijam.")
             continue
         
-        # Zmień rozmiar na 256x256 px
-        img_resized = cv2.resize(img, (256, 256))
+        # Zmień rozmiar na 124x124 px
+        img_resized = cv2.GaussianBlur(img, (11, 11), 0)
+        img_resized = cv2.resize(img_resized, (124, 124))
         
         # Wygeneruj unikalną nazwę
         new_name = generate_unique_name(existing_names) + ".jpg"

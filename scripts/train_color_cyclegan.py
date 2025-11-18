@@ -12,9 +12,9 @@ import cv2
 # ---------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataroot', type=str, default='../data/', help='folder with trainA and trainB')
-parser.add_argument('--batch_size', type=int, default=5)
+parser.add_argument('--batch_size', type=int, default=10)
 parser.add_argument('--image_size', type=int, default=256)
-parser.add_argument('--lr', type=float, default=2e-4)
+parser.add_argument('--lr', type=float, default=1e-4)
 parser.add_argument('--epochs', type=int, default=100)
 parser.add_argument('--lambda_cycle', type=float, default=10.0)
 parser.add_argument('--lambda_identity', type=float, default=5.0)
@@ -82,11 +82,11 @@ for epoch in range(opt.epochs):
         optimizer_D.step()
 
         # --- Logging ---
-        if i % 50 == 0:
-            print(f"[Epoch {epoch + 1}/{opt.epochs}] [Batch {i}/{len(dataloader)}] "
-                  f"Loss_G: {model.loss_G.item():.4f} "
-                  f"Loss_D_A: {model.loss_D_A.item():.4f} "
-                  f"Loss_D_B: {model.loss_D_B.item():.4f}")
+        
+        print(f"[Epoch {epoch + 1}/{opt.epochs}] [Batch {i}/{len(dataloader)}] "
+            f"Loss_G: {model.loss_G.item():.4f} "
+            f"Loss_D_A: {model.loss_D_A.item():.4f} "
+            f"Loss_D_B: {model.loss_D_B.item():.4f}")
 
 
     # --- Save checkpoint every epoch ---

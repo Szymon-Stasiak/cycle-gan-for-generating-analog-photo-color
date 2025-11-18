@@ -6,7 +6,10 @@ import argparse
 import os
 import numpy as np
 import cv2
+from replay_buffer import ImageBuffer
 
+fake_A_buffer = ImageBuffer(max_size=50)
+fake_B_buffer = ImageBuffer(max_size=50)
 # ---------------------------
 # 1. Arguments
 # ---------------------------
@@ -78,11 +81,11 @@ for epoch in range(opt.epochs):
 
         # --- Backward Discriminators ---
         optimizer_D.zero_grad()
-        model.backward_D(AB_A, AB_B)
+        model.backward_D(AB_A, AB_B, fake_A_buffer=fake_A_buffer, fake_B_buffer=fake_B_buffer)
         optimizer_D.step()
 
         # --- Logging ---
-        
+
         print(f"[Epoch {epoch + 1}/{opt.epochs}] [Batch {i}/{len(dataloader)}] "
             f"Loss_G: {model.loss_G.item():.4f} "
             f"Loss_D_A: {model.loss_D_A.item():.4f} "

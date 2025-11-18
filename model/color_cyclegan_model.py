@@ -55,7 +55,8 @@ class ColorCycleGANModel(BaseModel):
                           self.criterionCycle(self.rec_B, AB_B) * self.opt.lambda_cycle
 
         # Total generator loss
-        self.loss_G = self.loss_GAN + self.loss_cycle + self.loss_idt
+        self.loss_tv = tv_loss(self.fake_B) * 0.1
+        self.loss_G = self.loss_GAN + self.loss_cycle + self.loss_idt + self.loss_tv
         self.loss_G.backward()
 
     def backward_D_basic(self, netD, real, fake):
@@ -70,9 +71,20 @@ class ColorCycleGANModel(BaseModel):
         loss_D.backward()
         return loss_D
 
-    def backward_D(self, AB_A, AB_B):
-        self.loss_D_A = self.backward_D_basic(self.netD_A, AB_A, self.fake_A)
-        self.loss_D_B = self.backward_D_basic(self.netD_B, AB_B, self.fake_B)
+    def backward_D(self, AB_A, AB_B, fake_A_buffer=None, fake_B_buffer=None):
+        # jeśli podano bufor, użyj go
+        if fake_A_buffer is not None:
+            fake_A = fake_A_buffer.push_and_pop(self.fake_A)
+        else:
+            fake_A = self.fake_A
+
+        if fake_B_buffer is not None:
+            fake_B = fake_B_buffer.push_and_pop(self.fake_B)
+        else:
+            fake_B = self.fake_B
+
+        self.loss_D_A = self.backward_D_basic(self.netD_A, AB_A, fake_A)
+        self.loss_D_B = self.backward_D_basic(self.netD_B, AB_B, fake_B)
 
     def set_input(self, input):
         """Move input batch to device and store as model attributes"""
@@ -114,3 +126,10 @@ class ColorCycleGANModel(BaseModel):
         with torch.no_grad():
             fake_B = self.netG_A(input_tensor)
         return fake_B
+
+
+def tv_loss(x):
+    # x: [B, C, H, W]  (C=2 for AB)
+    dh = torch.abs(x[:, :, 1:, :] - x[:, :, :-1, :]).mean()
+    dw = torch.abs(x[:, :, :, 1:] - x[:, :, :, :-1]).mean()
+    return dh + dw

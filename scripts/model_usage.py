@@ -45,7 +45,7 @@ opt = Namespace(
 # 2. Load model and checkpoint
 # -----------------------------
 model = ColorCycleGANModel(opt)
-checkpoint_path = '../results/checkpoint_epoch_10.pth'
+checkpoint_path = '../results/checkpoint_epoch_2.pth'
 checkpoint = torch.load(checkpoint_path, map_location=opt.device)
 model.netG_A.load_state_dict(checkpoint['netG_A'])
 model.netG_B.load_state_dict(checkpoint['netG_B'])
@@ -54,7 +54,7 @@ model.eval()
 # -----------------------------
 # 3. Load and preprocess image
 # -----------------------------
-image_path = './my_datasets/p2.jpg'
+image_path = '../data/1000000544.jpg'
 img = Image.open(image_path).convert("RGB")
 img = pad_to_multiple(img, 8)
 
@@ -84,5 +84,5 @@ fake_AB = fake_AB[:, :H, :W]
 rgb_fake = lab_tensor_to_rgb(L_tensor, fake_AB)
 
 rgb_fake.show()
-rgb_fake.save('./my_datasets/p2_analog_output.jpg')
-print("Saved analog output image to ./my_datasets/p2_analog_output.jpg")
+# rgb_fake.save('./my_datasets/p2_analog_output.jpg')
+# print("Saved analog output image to ./my_datasets/p2_analog_output.jpg")

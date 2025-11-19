@@ -1,11 +1,8 @@
 import torch
-import cv2
-import numpy as np
 from model.color_cyclegan_model import ColorCycleGANModel
 from argparse import Namespace
 import matplotlib
 matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
 from utils.color_utils import rgb_to_lab_tensor, lab_tensor_to_rgb
 from PIL import Image
 import torchvision.transforms.functional as TF
@@ -26,26 +23,32 @@ def pad_to_multiple(img, multiple=8):
 # 1. Setup model options
 # -----------------------------
 opt = Namespace(
-    input_nc=2,
-    output_nc=2,
-    ngf=64,
-    ndf=64,
-    no_dropout=False,
-    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    dataroot='../data/',
+    batch_size=10,
+    image_size=256,
+    lr=1e-4,
+    epochs=30,
+    lambda_cycle=32.0,
+    lambda_identity=.0,
     save_dir='../results',
     isTrain=False,
     checkpoints_dir='checkpoints',
     name='color_cyclegan_experiment',
-    preprocess='resize_and_crop',
-    lambda_identity=0.5,
-    lambda_cycle=10.0
+    preprocess='none',
+    input_nc=2,
+    output_nc=2,
+    ngf=16,
+    ndf=16,
+    use_dropout=False,
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 )
+
 
 # -----------------------------
 # 2. Load model and checkpoint
 # -----------------------------
 model = ColorCycleGANModel(opt)
-checkpoint_path = '../results/checkpoint_epoch_2.pth'
+checkpoint_path = '../results/checkpoint_epoch_30.pth'
 checkpoint = torch.load(checkpoint_path, map_location=opt.device)
 model.netG_A.load_state_dict(checkpoint['netG_A'])
 model.netG_B.load_state_dict(checkpoint['netG_B'])
@@ -57,6 +60,7 @@ model.eval()
 image_path = '../data/1000000544.jpg'
 img = Image.open(image_path).convert("RGB")
 img = pad_to_multiple(img, 8)
+# resize to 256x256 for testing
 
 L_tensor, AB_tensor = rgb_to_lab_tensor(img)
 AB_tensor_batch = AB_tensor.unsqueeze(0)
@@ -84,5 +88,4 @@ fake_AB = fake_AB[:, :H, :W]
 rgb_fake = lab_tensor_to_rgb(L_tensor, fake_AB)
 
 rgb_fake.show()
-# rgb_fake.save('./my_datasets/p2_analog_output.jpg')
-# print("Saved analog output image to ./my_datasets/p2_analog_output.jpg")
+

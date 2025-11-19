@@ -4,8 +4,6 @@ from my_datasets.color_dataset import UnalignedColorDataset
 from model.color_cyclegan_model import ColorCycleGANModel
 import argparse
 import os
-import numpy as np
-import cv2
 from replay_buffer import ImageBuffer
 
 fake_A_buffer = ImageBuffer(max_size=50)
@@ -18,24 +16,25 @@ parser.add_argument('--dataroot', type=str, default='../data/', help='folder wit
 parser.add_argument('--batch_size', type=int, default=10)
 parser.add_argument('--image_size', type=int, default=256)
 parser.add_argument('--lr', type=float, default=1e-4)
-parser.add_argument('--epochs', type=int, default=100)
-parser.add_argument('--lambda_cycle', type=float, default=10.0)
-parser.add_argument('--lambda_identity', type=float, default=5.0)
+parser.add_argument('--epochs', type=int, default=30)
+parser.add_argument('--lambda_cycle', type=float, default=24.0)
+parser.add_argument('--lambda_identity', type=float, default=64.0)
 parser.add_argument('--save_dir', type=str, default='../results', help='folder to save results and checkpoints')
-parser.add_argument('--isTrain', default = True ,action='store_true', help='True for training, False for testing')
+parser.add_argument('--isTrain' ,action='store_true', help='True for training, False for testing')
 parser.add_argument('--checkpoints_dir', type=str, default='checkpoints', help='folder to save checkpoints')
 parser.add_argument('--name', type=str, default='color_cyclegan_experiment', help='name of the experiment')
-parser.add_argument('--preprocess', type=str, default='resize_and_crop', help='scaling/cropping of images')
-parser.add_argument('--input_nc', type=int, default=3, help='number of input channels')
-parser.add_argument('--output_nc', type=int, default=3, help='number of output channels')
-parser.add_argument('--ngf', type=int, default=32, help='number of generator filters')
-parser.add_argument('--ndf', type=int, default=32, help='number of discriminator filters')
-parser.add_argument('--no_dropout', action='store_true', help='no dropout for generator')
+parser.add_argument('--preprocess', type=str, default='none', help='scaling/cropping of images')
+parser.add_argument('--input_nc', type=int, default=2, help='number of input channels')
+parser.add_argument('--output_nc', type=int, default=2, help='number of output channels')
+parser.add_argument('--ngf', type=int, default=16, help='number of generator filters')
+parser.add_argument('--ndf', type=int, default=16, help='number of discriminator filters')
+parser.add_argument('--use_dropout', action='store_true', help='enable dropout in generator')
 
 opt = parser.parse_args()
 opt.isTrain = True
 opt.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+os.makedirs(opt.save_dir, exist_ok=True)
 # ---------------------------
 # 2. Dataset and DataLoader
 # ---------------------------
@@ -66,8 +65,8 @@ optimizer_D = torch.optim.Adam(
 # ---------------------------
 for epoch in range(opt.epochs):
     for i, data in enumerate(dataloader):
-        AB_A = data['AB_A'].to(opt.device)  # cyfrowe
-        AB_B = data['AB_B'].to(opt.device)  # analogowe
+        AB_A = data['AB_A'].to(opt.device)
+        AB_B = data['AB_B'].to(opt.device)
         L_A = data['L_A'].to(opt.device)
         L_B = data['L_B'].to(opt.device)
 

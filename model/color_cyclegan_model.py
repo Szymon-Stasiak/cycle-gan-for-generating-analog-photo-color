@@ -97,11 +97,31 @@ class ColorCycleGANModel(BaseModel):
         self.loss_D_B = self.backward_D_basic(self.netD_B, AB_B, fake_B)
 
     def set_input(self, input):
-        device = next(self.parameters()).device  # get model device
-        self.AB_A = input['AB_A'].to(device)
-        self.AB_B = input['AB_B'].to(device)
-        self.L_A = input['L_A'].to(device)
-        self.L_B = input['L_B'].to(device)
+        # BaseModel doesn't inherit torch.nn.Module, so self.parameters() isn't available.
+        # Use the device stored on the BaseModel (set from options) instead.
+        device = getattr(self, "device", None) or self.opt.device
+
+        # The dataset returns separated HSV channels (V, S, H) per domain.
+        # Assemble them into 3-channel tensors expected by the generators.
+        try:
+            # Expect shapes like [B, 1, H, W] for each channel; concat on channel dim -> [B,3,H,W]
+            self.AB_A = torch.cat([input['V_A'], input['S_A'], input['H_A']], dim=1).to(device)
+            self.AB_B = torch.cat([input['V_B'], input['S_B'], input['H_B']], dim=1).to(device)
+        except KeyError:
+            # Fallback for datasets that already provide AB_A / AB_B tensors
+            if 'AB_A' in input and 'AB_B' in input:
+                self.AB_A = input['AB_A'].to(device)
+                self.AB_B = input['AB_B'].to(device)
+            else:
+                raise KeyError("Dataset must provide either V_*/S_*/H_* channels or AB_A/AB_B tensors.")
+
+        # Optional metadata
+        self.A_path = input.get('A_path', None)
+        self.B_path = input.get('B_path', None)
+        self.image_paths = [self.A_path, self.B_path]
+        # Luminance placeholders (not used by current dataset)
+        self.L_A = None
+        self.L_B = None
 
     def optimize_parameters(self, optimizer_G, optimizer_D):
         # Forward

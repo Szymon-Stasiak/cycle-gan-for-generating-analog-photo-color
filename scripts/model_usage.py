@@ -49,7 +49,7 @@ opt = Namespace(
 # 2. Load model and checkpoint
 # -----------------------------
 model = ColorCycleGANModel(opt)
-checkpoint_path = '../results/checkpoint_epoch_8.pth'
+checkpoint_path = '../results/checkpoint_epoch_10.pth'
 checkpoint = torch.load(checkpoint_path, map_location=opt.device)
 try:
     model.netG_A.load_state_dict(checkpoint['netG_A'])

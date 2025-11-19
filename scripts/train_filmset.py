@@ -133,7 +133,15 @@ def prepare_filmset(dataset_name, out_dir, input_style=None, target_style=None):
 
 
 def build_and_train(root_dir, args):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # choose device: allow explicit GPU id (for example T4 is usually cuda:0)
+    if getattr(args, 'gpu', None) is not None and args.gpu >= 0 and torch.cuda.is_available():
+        try:
+            torch.cuda.set_device(args.gpu)
+        except Exception:
+            pass
+        device = torch.device(f"cuda:{args.gpu}")
+    else:
+        device = torch.device("cpu")
     args.device = device
 
     # enforce HSV channels
@@ -209,6 +217,7 @@ def main():
     parser.add_argument('--paired', action='store_true', help='Use paired dataset (input->styled)')
     parser.add_argument('--input_style', type=str, default=None, help='Name of folder to use as input (trainA). Case-insensitive.')
     parser.add_argument('--target_style', type=str, default=None, help='Name of folder to use as target (trainB), e.g. "Cinema"')
+    parser.add_argument('--gpu', type=int, default=0, help='GPU id to use (if CUDA available). Set to -1 to force CPU.')
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--image_size', type=int, default=256)
     parser.add_argument('--lr', type=float, default=1e-5)

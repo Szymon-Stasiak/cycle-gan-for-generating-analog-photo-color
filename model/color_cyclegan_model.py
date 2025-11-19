@@ -37,6 +37,12 @@ class ColorCycleGANModel(BaseModel):
         )
 
         self.criterionGAN = GANLoss(gan_mode='vanilla')
+        # ensure loss buffers are on the correct device (moved after opt.device is set)
+        try:
+            self.criterionGAN.to(opt.device)
+        except Exception:
+            # opt.device might not be a torch.device yet; defer to caller
+            pass
         self.criterionCycle = nn.L1Loss()
         self.criterionIdt = nn.L1Loss()
 

@@ -3,7 +3,7 @@ import glob
 from torch.utils.data import Dataset
 from PIL import Image
 import random
-from utils.color_utils import rgb_to_lab_tensor
+from utils.color_utils import rgb_to_hsv_tensor, rgb_to_lab_tensor
 
 class UnalignedColorDataset(Dataset):
     """
@@ -34,22 +34,27 @@ class UnalignedColorDataset(Dataset):
         return max(self.A_size, self.B_size)
 
     def __getitem__(self, idx):
-        A_path = self.A_paths[idx % self.A_size]
-        B_path = random.choice(self.B_paths)
+        if len(self.A_paths) >= len(self.B_paths):
+            A_path = self.A_paths[idx % self.A_size]
+            B_path = self.B_paths[random.randint(0, self.B_size - 1)]
+        else:
+            A_path = self.A_paths[random.randint(0, self.A_size - 1)]
+            B_path = self.B_paths[idx % self.B_size]
 
         A_img = Image.open(A_path).convert("RGB").resize((self.size, self.size), Image.BICUBIC)
         B_img = Image.open(B_path).convert("RGB").resize((self.size, self.size), Image.BICUBIC)
-
-        L_A, AB_A = rgb_to_lab_tensor(A_img)
-        L_B, AB_B = rgb_to_lab_tensor(B_img)
-
+        
+        HSV_A = rgb_to_hsv_tensor(A_img)
+        HSV_B = rgb_to_hsv_tensor(B_img)
         sample = {
-            'L_A': L_A,
-            'AB_A': AB_A,
-            'L_B': L_B,
-            'AB_B': AB_B,
-            'path_A': A_path,
-            'path_B': B_path
+            'V_A': HSV_A[0:1, :, :],  # Value channel
+            'S_A': HSV_A[1:2, :, :],  # Saturation channel
+            'H_A': HSV_A[2:3, :, :],  # Hue channel
+            'V_B': HSV_B[0:1, :, :],
+            'S_B': HSV_B[1:2, :, :],
+            'H_B': HSV_B[2:3, :, :],
+            'A_path': A_path,
+            'B_path': B_path   
         }
 
         return sample
@@ -60,7 +65,9 @@ if __name__ == "__main__":
     print(f"Number of images: {len(dataset)}")
     sample = dataset[0]
     print("Shapes:")
-    print("L_A:", sample['L_A'].shape)
-    print("AB_A:", sample['AB_A'].shape)
-    print("L_B:", sample['L_B'].shape)
-    print("AB_B:", sample['AB_B'].shape)
+    print("V_A:", sample['V_A'].shape)
+    print("S_A:", sample['S_A'].shape)
+    print("H_A:", sample['H_A'].shape)
+    print("V_B:", sample['V_B'].shape)
+    print("S_B:", sample['S_B'].shape)
+    print("H_B:", sample['H_B'].shape)

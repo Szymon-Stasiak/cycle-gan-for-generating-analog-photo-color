@@ -31,6 +31,38 @@ def lab_tensor_to_rgb(L_tensor, AB_tensor):
     rgb = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
     return Image.fromarray(rgb)
 
+def rgb_to_hsv_tensor(img: Image.Image):
+    """
+    Convert PIL RGB image to HSV tensors.
+    Returns H_tensor (1,H,W), S_tensor (1,H,W), V_tensor (1,H,W) normalized to [0,1].
+    """
+    hsv = cv2.cvtColor(np.array(img).astype(np.uint8), cv2.COLOR_RGB2HSV_FULL).astype(np.float32)
+    H = hsv[:, :, 0] / 179.0
+    S = hsv[:, :, 1] / 255.0
+    V = hsv[:, :, 2] / 255.0
+
+    H_tensor = torch.from_numpy(H).unsqueeze(0).float()
+    S_tensor = torch.from_numpy(S).unsqueeze(0).float()
+    V_tensor = torch.from_numpy(V).unsqueeze(0).float()
+    HSV_tensor = torch.stack([H_tensor, S_tensor, V_tensor], dim=0)
+
+    return HSV_tensor
+
+def hsv_tensor_to_rgb(HSV_tensor):
+    """
+    Convert HSV tensors back to RGB PIL image.
+    H_tensor: 1xHxW, S_tensor: 1xHxW, V_tensor: 1xHxW
+    """
+    H = (HSV_tensor[0].squeeze(0).numpy() * 179.0).astype(np.float32)
+    S = (HSV_tensor[1].squeeze(0).numpy() * 255.0).astype(np.float32)
+    V = (HSV_tensor[2].squeeze(0).numpy() * 255.0).astype(np.float32)
+
+    hsv = np.stack([H, S, V], axis=2).astype(np.uint8)
+    rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB_FULL)
+
+    return Image.fromarray(rgb)
+
+
 
 if __name__ == "__main__":
     img = Image.open("../data/1000000544.jpg").convert("RGB")

@@ -40,11 +40,13 @@ def rgb_to_hsv_tensor(img: Image.Image):
     H = hsv[:, :, 0] / 179.0
     S = hsv[:, :, 1] / 255.0
     V = hsv[:, :, 2] / 255.0
+    # convert to torch tensors with shape [H, W] then stack to [3, H, W]
+    H_tensor = torch.from_numpy(H).float()
+    S_tensor = torch.from_numpy(S).float()
+    V_tensor = torch.from_numpy(V).float()
 
-    H_tensor = torch.from_numpy(H).unsqueeze(0).float()
-    S_tensor = torch.from_numpy(S).unsqueeze(0).float()
-    V_tensor = torch.from_numpy(V).unsqueeze(0).float()
-    HSV_tensor = torch.stack([H_tensor, S_tensor, V_tensor], dim=0)
+    # desired order for downstream code: [V, S, H]
+    HSV_tensor = torch.stack([V_tensor, S_tensor, H_tensor], dim=0)
 
     return HSV_tensor
 
@@ -53,9 +55,10 @@ def hsv_tensor_to_rgb(HSV_tensor):
     Convert HSV tensors back to RGB PIL image.
     H_tensor: 1xHxW, S_tensor: 1xHxW, V_tensor: 1xHxW
     """
-    H = (HSV_tensor[0].squeeze(0).numpy() * 179.0).astype(np.float32)
-    S = (HSV_tensor[1].squeeze(0).numpy() * 255.0).astype(np.float32)
-    V = (HSV_tensor[2].squeeze(0).numpy() * 255.0).astype(np.float32)
+    # expected order: [V, S, H]
+    V = (HSV_tensor[0].numpy() * 255.0).astype(np.float32)
+    S = (HSV_tensor[1].numpy() * 255.0).astype(np.float32)
+    H = (HSV_tensor[2].numpy() * 179.0).astype(np.float32)
 
     hsv = np.stack([H, S, V], axis=2).astype(np.uint8)
     rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB_FULL)

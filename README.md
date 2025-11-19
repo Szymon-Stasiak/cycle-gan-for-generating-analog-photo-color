@@ -32,3 +32,22 @@ To test the model use
 model_usage.py 
 ```
 
+
+## Notes on color-space naming (legacy `AB` vs current `HSV`)
+
+Historically this codebase used LAB color-space where the chroma channels were called `A` and `B` (hence variables like `AB_A` / `AB_B`). The repository was later extended to support HSV-based color transforms. That created a small naming mismatch between variable names and actual color channels.
+
+Current conventions in the code:
+- Dataset (`my_datasets/color_dataset.py`) returns separated HSV channels as keys: `V_A`, `S_A`, `H_A` and `V_B`, `S_B`, `H_B` (each tensor shaped `[B,1,H,W]`).
+- `ColorCycleGANModel.set_input` concatenates these into a 3-channel tensor stored in `self.AB_A` and `self.AB_B` for backward compatibility with older code. IMPORTANT: in the HSV workflow these `AB_*` tensors actually contain channels in the order `[V, S, H]`.
+
+Why this matters:
+- Some variable names (like `AB_A`) are legacy and do not literally mean LAB A/B channels anymore — they are simply the model's input tensors. When reading or modifying code, treat `AB_A`/`AB_B` as "input tensors"; check the channel order before applying channel-wise operations.
+
+Recommendations:
+- Prefer referring to `self.AB_A` as `self.input_A` or `self.HSV_A` in new code to avoid confusion (aliases are safe to add in model code).
+- Ensure `opt.input_nc` and `opt.output_nc` are set to `3` when using HSV. If loading checkpoints trained with different `input_nc`, take care to adapt or retrain.
+- Confirm tensor ranges: `rgb_to_hsv_tensor` returns values normalized to `[0,1]`. If your model or checkpoints expect `[-1,1]`, you must normalize accordingly.
+
+If you'd like, we can (a) rename variables across the codebase for clarity, or (b) keep legacy names but document them (current approach). This README documents the current state.
+

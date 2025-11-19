@@ -3,7 +3,7 @@ from model.color_cyclegan_model import ColorCycleGANModel
 from argparse import Namespace
 import matplotlib
 matplotlib.use('TkAgg')
-from utils.color_utils import rgb_to_lab_tensor, lab_tensor_to_rgb
+from utils.color_utils import rgb_to_hsv_tensor, hsv_tensor_to_rgb
 from PIL import Image
 import torchvision.transforms.functional as TF
 
@@ -26,7 +26,7 @@ opt = Namespace(
     dataroot='../data/',
     batch_size=10,
     image_size=256,
-    lr=1e-4,
+    lr=1e-5,
     epochs=30,
     lambda_cycle=32.0,
     lambda_identity=.0,
@@ -35,10 +35,11 @@ opt = Namespace(
     checkpoints_dir='checkpoints',
     name='color_cyclegan_experiment',
     preprocess='none',
-    input_nc=2,
-    output_nc=2,
-    ngf=16,
-    ndf=16,
+    # use 3-channel HSV tensors for new model
+    input_nc=3,
+    output_nc=3,
+    ngf=32,
+    ndf=32,
     use_dropout=False,
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 )
@@ -48,44 +49,48 @@ opt = Namespace(
 # 2. Load model and checkpoint
 # -----------------------------
 model = ColorCycleGANModel(opt)
-checkpoint_path = '../results/checkpoint_epoch_30.pth'
+checkpoint_path = '../results/checkpoint_epoch_8.pth'
 checkpoint = torch.load(checkpoint_path, map_location=opt.device)
-model.netG_A.load_state_dict(checkpoint['netG_A'])
-model.netG_B.load_state_dict(checkpoint['netG_B'])
+try:
+    model.netG_A.load_state_dict(checkpoint['netG_A'])
+    model.netG_B.load_state_dict(checkpoint['netG_B'])
+except Exception as e:
+    print(f"Warning: failed to load checkpoint weights cleanly: {e}\nYou may be loading a checkpoint with different input_nc. Proceeding with current weights.")
 model.eval()
 
 # -----------------------------
-# 3. Load and preprocess image
+# 3. Load and preprocess image (HSV flow)
 # -----------------------------
-image_path = '../data/1000000544.jpg'
+image_path = './my_datasets/p2.jpg'
+
 img = Image.open(image_path).convert("RGB")
+img = img.resize((480,640)) 
 img = pad_to_multiple(img, 8)
-# resize to 256x256 for testing
 
-L_tensor, AB_tensor = rgb_to_lab_tensor(img)
-AB_tensor_batch = AB_tensor.unsqueeze(0)
-print("Input AB tensor batch shape:", AB_tensor_batch.shape)
+# convert to HSV tensor in order [V, S, H] with shape [3, H, W]
+HSV_tensor = rgb_to_hsv_tensor(img)
+HSV_batch = HSV_tensor.unsqueeze(0)
+print("Input HSV tensor batch shape:", HSV_batch.shape)
 
-device = next(model.netG_A.parameters()).device
-AB_tensor_batch = AB_tensor_batch.to(device)
+device = opt.device if hasattr(opt, 'device') else next(model.netG_A.parameters()).device
+HSV_batch = HSV_batch.to(device)
 
 # -----------------------------
-# 4. Transform AB
+# 4. Transform HSV
 # -----------------------------
 with torch.no_grad():
-    fake_AB_batch = model.transform_to_analog(AB_tensor_batch)
+    fake_HSV_batch = model.transform_to_analog(HSV_batch)
 
-fake_AB = fake_AB_batch[0].cpu()
-fake_AB = torch.clamp(fake_AB, -1.0, 1.0)
-print("Fake AB tensor shape:", fake_AB.shape)
+fake_HSV = fake_HSV_batch[0].cpu()
+fake_HSV = torch.clamp(fake_HSV, 0.0, 1.0)
+print("Fake HSV tensor shape:", fake_HSV.shape)
 
 # -----------------------------
-# 5. Crop fake_AB to match L_tensor
+# 5. Crop to original size and convert back to RGB
 # -----------------------------
-H, W = L_tensor.shape[1:]
-fake_AB = fake_AB[:, :H, :W]
+H, W = img.size[1], img.size[0]
+fake_HSV = fake_HSV[:, :H, :W]
 
-rgb_fake = lab_tensor_to_rgb(L_tensor, fake_AB)
-
+rgb_fake = hsv_tensor_to_rgb(fake_HSV)
 rgb_fake.show()
 

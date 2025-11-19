@@ -31,7 +31,7 @@ def find_image_dirs(root):
     return [p for p, c in sorted_dirs]
 
 
-def prepare_filmset(dataset_name, out_dir):
+def prepare_filmset(dataset_name, out_dir, input_style=None, target_style=None):
     """Download (via kagglehub) and prepare dataset so that out_dir contains trainA/ and trainB/.
     Heuristics:
       - If extracted dir already contains trainA/trainB, use them
@@ -70,17 +70,39 @@ def prepare_filmset(dataset_name, out_dir):
     trainA = None
     trainB = None
     candidate = Path(work_dir)
+
+    # prefer explicit trainA/trainB if present
     if (candidate / 'trainA').exists() and (candidate / 'trainB').exists():
         trainA = str(candidate / 'trainA')
         trainB = str(candidate / 'trainB')
     else:
-        # pick top 2 dirs by image counts
-        if len(img_dirs) >= 2:
-            trainA, trainB = img_dirs[0], img_dirs[1]
-        elif len(img_dirs) == 1:
-            # one directory only: split into two halves
-            trainA = img_dirs[0]
-            trainB = img_dirs[0]
+        # try to honor requested styles (case-insensitive basenames)
+        if input_style or target_style:
+            by_basename = {os.path.basename(p).lower(): p for p in img_dirs}
+            a = None
+            b = None
+            if input_style and input_style.lower() in by_basename:
+                a = by_basename[input_style.lower()]
+            if target_style and target_style.lower() in by_basename:
+                b = by_basename[target_style.lower()]
+            # if both found, use them
+            if a and b:
+                trainA, trainB = a, b
+            else:
+                # fallback to previous heuristic: top-2 dirs
+                if len(img_dirs) >= 2:
+                    trainA, trainB = img_dirs[0], img_dirs[1]
+                elif len(img_dirs) == 1:
+                    trainA = img_dirs[0]
+                    trainB = img_dirs[0]
+        else:
+            # pick top 2 dirs by image counts
+            if len(img_dirs) >= 2:
+                trainA, trainB = img_dirs[0], img_dirs[1]
+            elif len(img_dirs) == 1:
+                # one directory only: split into two halves
+                trainA = img_dirs[0]
+                trainB = img_dirs[0]
 
     # create out_dir/trainA and trainB as symlinks where possible
     out_dir = os.path.abspath(out_dir)
@@ -185,6 +207,8 @@ def main():
     parser.add_argument('--dataset_name', type=str, default='xuhangc/filmset', help='kagglehub dataset id')
     parser.add_argument('--dataroot', type=str, default='./data/filmset', help='local dataset root to prepare')
     parser.add_argument('--paired', action='store_true', help='Use paired dataset (input->styled)')
+    parser.add_argument('--input_style', type=str, default=None, help='Name of folder to use as input (trainA). Case-insensitive.')
+    parser.add_argument('--target_style', type=str, default=None, help='Name of folder to use as target (trainB), e.g. "Cinema"')
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--image_size', type=int, default=256)
     parser.add_argument('--lr', type=float, default=1e-5)
@@ -213,7 +237,7 @@ def main():
     args.isTrain = True
 
     if args.download:
-        root = prepare_filmset(args.dataset_name, args.dataroot)
+        root = prepare_filmset(args.dataset_name, args.dataroot, input_style=args.input_style, target_style=args.target_style)
     else:
         root = args.dataroot
 

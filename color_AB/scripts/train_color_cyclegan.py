@@ -1,10 +1,10 @@
 import torch
 from torch.utils.data import DataLoader
 from my_datasets.color_dataset import UnalignedColorDataset, UnalignedColorDatasetAug
-from model.color_cyclegan_model import ColorCycleGANModel
+from model.color_cyclegan_model_AB import ColorCycleGANModel
 import argparse
 import os
-from replay_buffer import ImageBuffer
+from utils.replay_buffer import ImageBuffer
 
 fake_A_buffer = ImageBuffer(max_size=50)
 fake_B_buffer = ImageBuffer(max_size=50)
@@ -12,7 +12,7 @@ fake_B_buffer = ImageBuffer(max_size=50)
 # 1. Arguments
 # ---------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataroot', type=str, default='../data/', help='folder with trainA and trainB')
+parser.add_argument('--dataroot', type=str, default='../../data', help='folder with trainA and trainB')
 parser.add_argument('--batch_size', type=int, default=10)
 parser.add_argument('--image_size', type=int, default=256)
 parser.add_argument('--lr', type=float, default=1e-5)

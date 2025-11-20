@@ -1,5 +1,5 @@
 import torch
-from model.color_cyclegan_model import ColorCycleGANModel
+from model.color_cyclegan_model_LAB import ColorCycleGANModel
 import matplotlib
 matplotlib.use('TkAgg')
 from utils.color_utils import rgb_to_lab_tensor, lab_tensor_to_rgb
@@ -21,12 +21,9 @@ def pad_to_multiple(img, multiple=8):
     return TF.pad(img, (0, 0, pad_w, pad_h))
 
 
-
 # -----------------------------
 # 2. Load model and checkpoint
 # -----------------------------
-
-
 checkpoint_path = '../results/best_checkpoint.pth'
 
 checkpoint = torch.load(checkpoint_path, map_location=device)
@@ -41,44 +38,38 @@ model.netG_B.load_state_dict(checkpoint['netG_B'])
 model.netD_A.load_state_dict(checkpoint['netD_A'])
 model.netD_B.load_state_dict(checkpoint['netD_B'])
 
-
 model.netG_A.eval()
 model.netG_B.eval()
 
 print(f"Checkpoint epoch {checkpoint_path} loaded successfully!")
 
+
 # -----------------------------
 # 3. Load and preprocess image
 # -----------------------------
-image_path = '../data/1000000544.jpg'
+image_path = '../../data/1000000544.jpg'
 img = Image.open(image_path).convert("RGB")
 img = pad_to_multiple(img, 8)
-# resize to 256x256 for testing
 
-L_tensor, AB_tensor = rgb_to_lab_tensor(img)
-AB_tensor_batch = AB_tensor.unsqueeze(0)
-print("Input AB tensor batch shape:", AB_tensor_batch.shape)
+
+L_tensor, AB_tensor = rgb_to_lab_tensor(img)  # tuple: L [1,H,W], AB [2,H,W]
+
+lab_tensor = torch.cat([L_tensor, AB_tensor], dim=0)  # [3,H,W]
+
+lab_batch = lab_tensor.unsqueeze(0)  # [1,3,H,W]
 
 device = next(model.netG_A.parameters()).device
-AB_tensor_batch = AB_tensor_batch.to(device)
+lab_batch = lab_batch.to(device)
 
-# -----------------------------
-# 4. Transform AB
-# -----------------------------
+
 with torch.no_grad():
-    fake_AB_batch = model.transform_to_analog(AB_tensor_batch)
+    fake_lab_batch = model.inference(lab_batch)  # [1,3,H,W]
 
-fake_AB = fake_AB_batch[0].cpu()
-fake_AB = torch.clamp(fake_AB, -1.0, 1.0)
-print("Fake AB tensor shape:", fake_AB.shape)
+fake_lab = fake_lab_batch[0].cpu()
+fake_lab = torch.clamp(fake_lab, -1.0, 1.0)
 
-# -----------------------------
-# 5. Crop fake_AB to match L_tensor
-# -----------------------------
-H, W = L_tensor.shape[1:]
-fake_AB = fake_AB[:, :H, :W]
+L = fake_lab[0:1]       # [1,H,W]
+AB = fake_lab[1:3]      # [2,H,W]
 
-rgb_fake = lab_tensor_to_rgb(L_tensor, fake_AB)
-
+rgb_fake = lab_tensor_to_rgb(L, AB)
 rgb_fake.show()
-

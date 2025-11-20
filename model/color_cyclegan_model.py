@@ -4,10 +4,10 @@ from model.base_model import BaseModel
 from model.networks import ResnetGenerator, NLayerDiscriminator, GANLoss
 
 
-class ColorCycleGANModel(BaseModel):
-
+class ColorCycleGANModel(BaseModel, nn.Module):
     def __init__(self, opt):
-
+        BaseModel.__init__(self, opt)
+        nn.Module.__init__(self)
         super(ColorCycleGANModel, self).__init__(opt)
 
         self.opt = opt
@@ -40,20 +40,19 @@ class ColorCycleGANModel(BaseModel):
         self.criterionCycle = nn.L1Loss()
         self.criterionIdt = nn.L1Loss()
 
-    def forward(self, AB_A, AB_B):
-
-        self.fake_B = self.netG_A(AB_A)
+    def forward(self):
+        self.fake_B = self.netG_A(self.AB_A)
         self.rec_A = self.netG_B(self.fake_B)
 
-        self.fake_A = self.netG_B(AB_B)
+        self.fake_A = self.netG_B(self.AB_B)
         self.rec_B = self.netG_A(self.fake_A)
 
-    def backward_G(self, AB_A, AB_B):
+    def backward_G(self):
         # Identity loss
-        idt_B = self.netG_A(AB_B)
-        idt_A = self.netG_B(AB_A)
-        self.loss_idt = self.criterionIdt(idt_B, AB_B) * self.opt.lambda_identity + \
-                        self.criterionIdt(idt_A, AB_A) * self.opt.lambda_identity
+        idt_B = self.netG_A(self.AB_B)
+        idt_A = self.netG_B(self.AB_A)
+        self.loss_idt = self.criterionIdt(idt_B, self.AB_B) * self.opt.lambda_identity + \
+                        self.criterionIdt(idt_A, self.AB_A) * self.opt.lambda_identity
 
         # GAN loss
         self.loss_G_A = self.criterionGAN(self.netD_B(self.fake_B), True)
@@ -61,8 +60,8 @@ class ColorCycleGANModel(BaseModel):
         self.loss_GAN = self.loss_G_A + self.loss_G_B
 
         # Cycle loss
-        self.loss_cycle = self.criterionCycle(self.rec_A, AB_A) * self.opt.lambda_cycle + \
-                          self.criterionCycle(self.rec_B, AB_B) * self.opt.lambda_cycle
+        self.loss_cycle = self.criterionCycle(self.rec_A, self.AB_A) * self.opt.lambda_cycle + \
+                          self.criterionCycle(self.rec_B, self.AB_B) * self.opt.lambda_cycle
 
         # Total generator loss
         self.loss_tv = tv_loss(self.fake_B) * 0.0
@@ -81,8 +80,7 @@ class ColorCycleGANModel(BaseModel):
         loss_D.backward()
         return loss_D
 
-    def backward_D(self, AB_A, AB_B, fake_A_buffer=None, fake_B_buffer=None):
-        # jeśli podano bufor, użyj go
+    def backward_D(self, fake_A_buffer=None, fake_B_buffer=None):
         if fake_A_buffer is not None:
             fake_A = fake_A_buffer.push_and_pop(self.fake_A)
         else:
@@ -93,8 +91,8 @@ class ColorCycleGANModel(BaseModel):
         else:
             fake_B = self.fake_B
 
-        self.loss_D_A = self.backward_D_basic(self.netD_A, AB_A, fake_A)
-        self.loss_D_B = self.backward_D_basic(self.netD_B, AB_B, fake_B)
+        self.loss_D_A = self.backward_D_basic(self.netD_A, self.AB_A, fake_A)
+        self.loss_D_B = self.backward_D_basic(self.netD_B, self.AB_B, fake_B)
 
     def set_input(self, input):
         device = next(self.parameters()).device  # get model device
@@ -103,18 +101,18 @@ class ColorCycleGANModel(BaseModel):
         self.L_A = input['L_A'].to(device)
         self.L_B = input['L_B'].to(device)
 
-    def optimize_parameters(self, optimizer_G, optimizer_D):
-        # Forward
-        self.forward(self.AB_A, self.AB_B)
+    def optimize_parameters(self, optimizer_G, optimizer_D, fake_A_buffer=None, fake_B_buffer=None):
+        # forward
+        self.forward()
 
-        # Generators
+        # G
         optimizer_G.zero_grad()
-        self.backward_G(self.AB_A, self.AB_B)
+        self.backward_G()
         optimizer_G.step()
 
-        # Discriminators
+        # D
         optimizer_D.zero_grad()
-        self.backward_D(self.AB_A, self.AB_B)
+        self.backward_D(fake_A_buffer, fake_B_buffer)
         optimizer_D.step()
 
     def transform_to_analog(self, AB_A):

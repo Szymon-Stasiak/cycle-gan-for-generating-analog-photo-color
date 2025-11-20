@@ -1,11 +1,13 @@
 import torch
 from model.color_cyclegan_model import ColorCycleGANModel
-from argparse import Namespace
 import matplotlib
 matplotlib.use('TkAgg')
 from utils.color_utils import rgb_to_lab_tensor, lab_tensor_to_rgb
 from PIL import Image
 import torchvision.transforms.functional as TF
+import argparse
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # -----------------------------
 # Padding helper
@@ -19,40 +21,31 @@ def pad_to_multiple(img, multiple=8):
     return TF.pad(img, (0, 0, pad_w, pad_h))
 
 
-# -----------------------------
-# 1. Setup model options
-# -----------------------------
-opt = Namespace(
-    dataroot='../data/',
-    batch_size=10,
-    image_size=256,
-    lr=1e-4,
-    epochs=30,
-    lambda_cycle=32.0,
-    lambda_identity=.0,
-    save_dir='../results',
-    isTrain=False,
-    checkpoints_dir='checkpoints',
-    name='color_cyclegan_experiment',
-    preprocess='none',
-    input_nc=2,
-    output_nc=2,
-    ngf=16,
-    ndf=16,
-    use_dropout=False,
-    device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-)
-
 
 # -----------------------------
 # 2. Load model and checkpoint
 # -----------------------------
+
+
+checkpoint_path = '../results/best_checkpoint.pth'
+
+checkpoint = torch.load(checkpoint_path, map_location=device)
+
+saved_opt_dict = checkpoint['opt']
+opt = argparse.Namespace(**saved_opt_dict)
+
 model = ColorCycleGANModel(opt)
-checkpoint_path = '../results/checkpoint_epoch_30.pth'
-checkpoint = torch.load(checkpoint_path, map_location=opt.device)
+
 model.netG_A.load_state_dict(checkpoint['netG_A'])
 model.netG_B.load_state_dict(checkpoint['netG_B'])
-model.eval()
+model.netD_A.load_state_dict(checkpoint['netD_A'])
+model.netD_B.load_state_dict(checkpoint['netD_B'])
+
+
+model.netG_A.eval()
+model.netG_B.eval()
+
+print(f"Checkpoint epoch {checkpoint_path} loaded successfully!")
 
 # -----------------------------
 # 3. Load and preprocess image

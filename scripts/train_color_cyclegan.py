@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import DataLoader
-from my_datasets.color_dataset import UnalignedColorDataset
+from my_datasets.color_dataset import UnalignedColorDataset , UnalignedColorDatasetAug
 from model.color_cyclegan_model import ColorCycleGANModel
 import argparse
 import os
@@ -15,10 +15,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dataroot', type=str, default='../data/', help='folder with trainA and trainB')
 parser.add_argument('--batch_size', type=int, default=10)
 parser.add_argument('--image_size', type=int, default=256)
-parser.add_argument('--lr', type=float, default=1e-4)
-parser.add_argument('--epochs', type=int, default=30)
-parser.add_argument('--lambda_cycle', type=float, default=24.0)
-parser.add_argument('--lambda_identity', type=float, default=64.0)
+parser.add_argument('--lr', type=float, default=1e-5)
+parser.add_argument('--epochs', type=int, default=1000)
+parser.add_argument('--lambda_cycle', type=float, default=10.0)
+parser.add_argument('--lambda_identity', type=float, default=128.0)
 parser.add_argument('--save_dir', type=str, default='../results', help='folder to save results and checkpoints')
 parser.add_argument('--isTrain' ,action='store_true', help='True for training, False for testing')
 parser.add_argument('--checkpoints_dir', type=str, default='checkpoints', help='folder to save checkpoints')
@@ -26,9 +26,10 @@ parser.add_argument('--name', type=str, default='color_cyclegan_experiment', hel
 parser.add_argument('--preprocess', type=str, default='none', help='scaling/cropping of images')
 parser.add_argument('--input_nc', type=int, default=2, help='number of input channels')
 parser.add_argument('--output_nc', type=int, default=2, help='number of output channels')
-parser.add_argument('--ngf', type=int, default=16, help='number of generator filters')
+parser.add_argument('--ngf', type=int, default=8, help='number of generator filters')
 parser.add_argument('--ndf', type=int, default=16, help='number of discriminator filters')
 parser.add_argument('--use_dropout', action='store_true', help='enable dropout in generator')
+parser.add_argument('--augment-dataset', default=False, help='use data augmentation in the dataset') # usually loss functions gives worse results with augmentation
 
 opt = parser.parse_args()
 opt.isTrain = True
@@ -38,7 +39,11 @@ os.makedirs(opt.save_dir, exist_ok=True)
 # ---------------------------
 # 2. Dataset and DataLoader
 # ---------------------------
-dataset = UnalignedColorDataset(root_dir=opt.dataroot, image_size=opt.image_size)
+if opt.augment_dataset:
+    dataset = UnalignedColorDatasetAug(root_dir=opt.dataroot, image_size=opt.image_size)
+else:
+    dataset = UnalignedColorDataset(root_dir=opt.dataroot, image_size=opt.image_size)
+
 dataloader = DataLoader(dataset, batch_size=opt.batch_size, shuffle=True)
 
 # ---------------------------
@@ -63,6 +68,8 @@ optimizer_D = torch.optim.Adam(
 # ---------------------------
 # 4. Training
 # ---------------------------
+
+min_loss = float('inf')
 for epoch in range(opt.epochs):
     for i, data in enumerate(dataloader):
         AB_A = data['AB_A'].to(opt.device)
@@ -92,13 +99,27 @@ for epoch in range(opt.epochs):
 
 
     # --- Save checkpoint every epoch ---
-    torch.save({
-        'netG_A': model.netG_A.state_dict(),
-        'netG_B': model.netG_B.state_dict(),
-        'netD_A': model.netD_A.state_dict(),
-        'netD_B': model.netD_B.state_dict(),
-        'optimizer_G': optimizer_G.state_dict(),
-        'optimizer_D': optimizer_D.state_dict()
-    }, os.path.join(opt.save_dir, f'checkpoint_epoch_{epoch + 1}.pth'))
+    # torch.save({
+    #     'opt': vars(opt),
+    #     'netG_A': model.netG_A.state_dict(),
+    #     'netG_B': model.netG_B.state_dict(),
+    #     'netD_A': model.netD_A.state_dict(),
+    #     'netD_B': model.netD_B.state_dict(),
+    #     'optimizer_G': optimizer_G.state_dict(),
+    #     'optimizer_D': optimizer_D.state_dict()
+    # }, os.path.join(opt.save_dir, f'checkpoint_epoch_{epoch + 1}.pth'))
+
+    if model.loss_G.item() < min_loss:
+        min_loss = model.loss_G.item()
+        torch.save({
+            'opt': vars(opt),
+            'netG_A': model.netG_A.state_dict(),
+            'netG_B': model.netG_B.state_dict(),
+            'netD_A': model.netD_A.state_dict(),
+            'netD_B': model.netD_B.state_dict(),
+            'optimizer_G': optimizer_G.state_dict(),
+            'optimizer_D': optimizer_D.state_dict()
+        }, os.path.join(opt.save_dir, 'best_checkpoint.pth'))
+        print(f"Best model saved at epoch {epoch + 1} with Loss_G: {min_loss:.4f}")
 
 print("Training finished!")

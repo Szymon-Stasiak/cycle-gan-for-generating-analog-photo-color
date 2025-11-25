@@ -15,14 +15,10 @@ class UnalignedColorDataset(Dataset):
     Domain B: analog
     """
 
-    def __init__(self, root_dir, transform=None, image_size=256):
-        """
-        root_dir: folder containing subfolders 'trainA' and 'trainB'
-        transform: optional augmentations
-        image_size: image size after resize
-        """
-        self.dir_A = os.path.join(root_dir, "trainA")
-        self.dir_B = os.path.join(root_dir, "trainB")
+    def __init__(self, path_A, path_B, transform=None, image_size=256):
+        self.dir_A = path_A
+        self.dir_B = path_B
+
         print(f"Loading images from {self.dir_A} and {self.dir_B}")
         self.A_paths = sorted(glob.glob(os.path.join(self.dir_A, "*.*")))
         self.B_paths = sorted(glob.glob(os.path.join(self.dir_B, "*.*")))
@@ -64,9 +60,11 @@ class UnalignedColorDatasetAug(Dataset):
     - Each digital and analog photo is used at least once in its original form
     - Additionally, random color variants (augmentation)
     """
-    def __init__(self, root_dir, image_size=256):
-        self.dir_A = os.path.join(root_dir, "trainA")
-        self.dir_B = os.path.join(root_dir, "trainB")
+
+    def __init__(self, path_A, path_B, image_size=256):
+        self.dir_A = path_A
+        self.dir_B = path_B
+
         print(f"Loading images from {self.dir_A} and {self.dir_B}")
 
         self.A_paths = sorted(glob.glob(os.path.join(self.dir_A, "*.*")))

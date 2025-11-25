@@ -11,6 +11,8 @@ if __name__ == "__main__":
     # 1. Arguments
     # ---------------------------
     parser = argparse.ArgumentParser()
+    parser.add_argument('--path_A', type=str, default="../../data/trainA", help='folder with domain A')
+    parser.add_argument('--path_B', type=str, default="../../data/trainB", help='folder with domain B')
     parser.add_argument('--dataroot', type=str, default='../../data', help='folder with trainA and trainB')
     parser.add_argument('--batch_size', type=int, default=10)
     parser.add_argument('--image_size', type=int, default=256)
@@ -40,10 +42,18 @@ if __name__ == "__main__":
     # ---------------------------
     # 2. Dataset and DataLoader
     # ---------------------------
-    if opt.augment_dataset or getattr(opt, 'augment-dataset', False):
-        dataset = UnalignedColorDatasetAug(root_dir=opt.dataroot, image_size=opt.image_size)
+    if opt.augment_dataset:
+        dataset = UnalignedColorDatasetAug(
+            path_A=opt.path_A,
+            path_B=opt.path_B,
+            image_size=opt.image_size
+        )
     else:
-        dataset = UnalignedColorDataset(root_dir=opt.dataroot, image_size=opt.image_size)
+        dataset = UnalignedColorDataset(
+            path_A=opt.path_A,
+            path_B=opt.path_B,
+            image_size=opt.image_size
+        )
 
     dataloader = DataLoader(dataset, batch_size=opt.batch_size, shuffle=True)
 

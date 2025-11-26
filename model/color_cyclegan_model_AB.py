@@ -12,6 +12,8 @@ class ColorCycleGANModel(BaseModel, nn.Module):
 
         self.opt = opt
 
+        self.device = opt.device
+
         self.netG_A = ResnetGenerator(
             input_nc=opt.input_nc,
             output_nc=opt.output_nc,
@@ -95,11 +97,12 @@ class ColorCycleGANModel(BaseModel, nn.Module):
         self.loss_D_B = self.backward_D_basic(self.netD_B, self.AB_B, fake_B)
 
     def set_input(self, input):
-        device = next(self.parameters()).device  # get model device
-        self.AB_A = input['AB_A'].to(device)
-        self.AB_B = input['AB_B'].to(device)
-        self.L_A = input['L_A'].to(device)
-        self.L_B = input['L_B'].to(device)
+        d = self.device
+        self.AB_A = input['AB_A'].to(d)
+        self.AB_B = input['AB_B'].to(d)
+        self.L_A = input['L_A'].to(d)
+        self.L_B = input['L_B'].to(d)
+
 
     def optimize_parameters(self, optimizer_G, optimizer_D, fake_A_buffer=None, fake_B_buffer=None):
         # forward
@@ -116,9 +119,8 @@ class ColorCycleGANModel(BaseModel, nn.Module):
         optimizer_D.step()
 
     def transform_to_analog(self, AB_A):
-
-        self.eval()  # evaluation mode
-        device = next(self.netG_A.parameters()).device  # use generator, not model
+        self.eval()
+        device = self.device
         if isinstance(AB_A, torch.Tensor):
             input_tensor = AB_A.to(device)
         else:

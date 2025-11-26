@@ -6,134 +6,136 @@ import argparse
 import os
 from utils.replay_buffer import ImageBuffer
 
-if __name__ == "__main__":
-    # ---------------------------
-    # 1. Arguments
-    # ---------------------------
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--path_A', type=str, default="../../data/trainA", help='folder with domain A')
-    parser.add_argument('--path_B', type=str, default="../../data/trainB", help='folder with domain B')
-    parser.add_argument('--dataroot', type=str, default='../../data', help='folder with trainA and trainB')
-    parser.add_argument('--batch_size', type=int, default=10)
-    parser.add_argument('--image_size', type=int, default=256)
-    parser.add_argument('--lr', type=float, default=1e-4)
-    parser.add_argument('--epochs', type=int, default=1000)
-    parser.add_argument('--lambda_cycle', type=float, default=10.0)
-    parser.add_argument('--lambda_identity', type=float, default=128.0)
-    parser.add_argument('--save_dir', type=str, default='../results', help='folder to save results and checkpoints')
-    parser.add_argument('--isTrain', action='store_true', help='True for training, False for testing')
-    parser.add_argument('--checkpoints_dir', type=str, default='checkpoints', help='folder to save checkpoints')
-    parser.add_argument('--name', type=str, default='color_cyclegan_experiment', help='name of the experiment')
-    parser.add_argument('--preprocess', type=str, default='none', help='scaling/cropping of images')
-    parser.add_argument('--input_nc', type=int, default=3, help='number of input channels (LAB -> 3)')
-    parser.add_argument('--output_nc', type=int, default=3, help='number of output channels (LAB -> 3)')
-    parser.add_argument('--ngf', type=int, default=8, help='number of generator filters')
-    parser.add_argument('--ndf', type=int, default=16, help='number of discriminator filters')
-    parser.add_argument('--use_dropout', action='store_true', help='enable dropout in generator')
-    parser.add_argument('--augment-dataset', default=False, action='store_true',
-                        help='use data augmentation in the dataset')
-    opt = parser.parse_args()
 
-    opt.isTrain = True
-    opt.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# ---------------------------
+# 1. Arguments
+# ---------------------------
+parser = argparse.ArgumentParser()
+parser.add_argument('--path_A', type=str, default="../../data/trainA", help='folder with domain A')
+parser.add_argument('--path_B', type=str, default="../../data/trainB", help='folder with domain B')
+parser.add_argument('--dataroot', type=str, default='../../data', help='folder with trainA and trainB')
+parser.add_argument('--batch_size', type=int, default=10)
+parser.add_argument('--image_size', type=int, default=256)
+parser.add_argument('--lr', type=float, default=1e-4)
+parser.add_argument('--epochs', type=int, default=1000)
+parser.add_argument('--lambda_cycle', type=float, default=10.0)
+parser.add_argument('--lambda_identity', type=float, default=128.0)
+parser.add_argument('--save_dir', type=str, default='../results', help='folder to save results and checkpoints')
+parser.add_argument('--isTrain', action='store_true', help='True for training, False for testing')
+parser.add_argument('--checkpoints_dir', type=str, default='checkpoints', help='folder to save checkpoints')
+parser.add_argument('--name', type=str, default='color_cyclegan_experiment', help='name of the experiment')
+parser.add_argument('--preprocess', type=str, default='none', help='scaling/cropping of images')
+parser.add_argument('--input_nc', type=int, default=3, help='number of input channels (LAB -> 3)')
+parser.add_argument('--output_nc', type=int, default=3, help='number of output channels (LAB -> 3)')
+parser.add_argument('--ngf', type=int, default=8, help='number of generator filters')
+parser.add_argument('--ndf', type=int, default=16, help='number of discriminator filters')
+parser.add_argument('--use_dropout', action='store_true', help='enable dropout in generator')
+parser.add_argument('--augment-dataset', default=False, action='store_true',
+                    help='use data augmentation in the dataset')
+opt = parser.parse_args()
 
-    os.makedirs(opt.save_dir, exist_ok=True)
+opt.isTrain = True
+opt.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # ---------------------------
-    # 2. Dataset and DataLoader
-    # ---------------------------
-    if opt.augment_dataset:
-        dataset = UnalignedColorDatasetAug(
-            path_A=opt.path_A,
-            path_B=opt.path_B,
-            image_size=opt.image_size
-        )
-    else:
-        dataset = UnalignedColorDataset(
-            path_A=opt.path_A,
-            path_B=opt.path_B,
-            image_size=opt.image_size
-        )
+os.makedirs(opt.save_dir, exist_ok=True)
 
-    dataloader = DataLoader(dataset, batch_size=opt.batch_size, shuffle=True)
-
-    # ---------------------------
-    # 3. Model
-    # ---------------------------
-    model = ColorCycleGANModel(opt)
-    model.netG_A.to(opt.device)
-    model.netG_B.to(opt.device)
-    model.netD_A.to(opt.device)
-    model.netD_B.to(opt.device)
-
-    # Optimizers
-    optimizer_G = torch.optim.Adam(
-        list(model.netG_A.parameters()) + list(model.netG_B.parameters()),
-        lr=opt.lr, betas=(0.5, 0.999)
+# ---------------------------
+# 2. Dataset and DataLoader
+# ---------------------------
+if opt.augment_dataset:
+    dataset = UnalignedColorDatasetAug(
+        path_A=opt.path_A,
+        path_B=opt.path_B,
+        image_size=opt.image_size
     )
-    optimizer_D = torch.optim.Adam(
-        list(model.netD_A.parameters()) + list(model.netD_B.parameters()),
-        lr=opt.lr, betas=(0.5, 0.999)
+else:
+    dataset = UnalignedColorDataset(
+        path_A=opt.path_A,
+        path_B=opt.path_B,
+        image_size=opt.image_size
     )
 
-    fake_A_buffer = ImageBuffer(max_size=50)
-    fake_B_buffer = ImageBuffer(max_size=50)
 
-    # ---------------------------
-    # 4. Training
-    # ---------------------------
-    min_loss = float('inf')
-    for epoch in range(opt.epochs):
-        for i, data in enumerate(dataloader):
+dataloader = DataLoader(dataset, batch_size=opt.batch_size, shuffle=True)
 
-            model.set_input(data)
-            model.optimize_parameters(optimizer_G, optimizer_D, fake_A_buffer, fake_B_buffer)
+# ---------------------------
+# 3. Model
+# ---------------------------
+model = ColorCycleGANModel(opt)
+model.to(opt.device)
 
 
-            try:
-                loss_G = model.loss_G.item()
-            except Exception:
-                loss_G = float('nan')
-            try:
-                loss_D_A = model.loss_D_A.item()
-            except Exception:
-                loss_D_A = float('nan')
-            try:
-                loss_D_B = model.loss_D_B.item()
-            except Exception:
-                loss_D_B = float('nan')
+# Optimizers
+optimizer_G = torch.optim.Adam(
+    list(model.netG_A.parameters()) + list(model.netG_B.parameters()),
+    lr=opt.lr, betas=(0.5, 0.999)
+)
+optimizer_D = torch.optim.Adam(
+    list(model.netD_A.parameters()) + list(model.netD_B.parameters()),
+    lr=opt.lr, betas=(0.5, 0.999)
+)
 
-            print(f"[Epoch {epoch + 1}/{opt.epochs}] [Batch {i}/{len(dataloader)}] "
-                  f"Loss_G: {loss_G:.4f} "
-                  f"Loss_D_A: {loss_D_A:.4f} "
-                  f"Loss_D_B: {loss_D_B:.4f}")
+fake_A_buffer = ImageBuffer(max_size=50)
+fake_B_buffer = ImageBuffer(max_size=50)
 
-        # torch.save({
-        #     'opt': vars(opt),
-        #     'netG_A': model.netG_A.state_dict(),
-        #     'netG_B': model.netG_B.state_dict(),
-        #     'netD_A': model.netD_A.state_dict(),
-        #     'netD_B': model.netD_B.state_dict(),
-        #     'optimizer_G': optimizer_G.state_dict(),
-        #     'optimizer_D': optimizer_D.state_dict()
-        # }, os.path.join(opt.save_dir, f'checkpoint_epoch_{epoch + 1}.pth'))
+# ---------------------------
+# 4. Training
+# ---------------------------
+
+min_loss = float('inf')
+save_path = opt.save_dir
+
+for epoch in range(opt.epochs):
+    for i, data in enumerate(dataloader):
+
+        model.set_input(data)
+        model.optimize_parameters(optimizer_G, optimizer_D, fake_A_buffer, fake_B_buffer)
+
 
         try:
-            current_loss_G = model.loss_G.item()
+            loss_G = model.loss_G.item()
         except Exception:
-            current_loss_G = float('inf')
+            loss_G = float('nan')
+        try:
+            loss_D_A = model.loss_D_A.item()
+        except Exception:
+            loss_D_A = float('nan')
+        try:
+            loss_D_B = model.loss_D_B.item()
+        except Exception:
+            loss_D_B = float('nan')
 
-        if current_loss_G < min_loss:
-            min_loss = current_loss_G
-            torch.save({
-                'opt': vars(opt),
-                'netG_A': model.netG_A.state_dict(),
-                'netG_B': model.netG_B.state_dict(),
-                'netD_A': model.netD_A.state_dict(),
-                'netD_B': model.netD_B.state_dict(),
-                'optimizer_G': optimizer_G.state_dict(),
-                'optimizer_D': optimizer_D.state_dict()
-            }, os.path.join(opt.save_dir, 'best_checkpoint.pth'))
-            print(f"Best model saved at epoch {epoch + 1} with Loss_G: {min_loss:.4f}")
+        print(f"[Epoch {epoch + 1}/{opt.epochs}] [Batch {i}/{len(dataloader)}] "
+              f"Loss_G: {loss_G:.4f} "
+              f"Loss_D_A: {loss_D_A:.4f} "
+              f"Loss_D_B: {loss_D_B:.4f}")
 
-    print("Training finished!")
+    # torch.save({
+    #     'opt': vars(opt),
+    #     'netG_A': model.netG_A.state_dict(),
+    #     'netG_B': model.netG_B.state_dict(),
+    #     'netD_A': model.netD_A.state_dict(),
+    #     'netD_B': model.netD_B.state_dict(),
+    #     'optimizer_G': optimizer_G.state_dict(),
+    #     'optimizer_D': optimizer_D.state_dict()
+    # }, os.path.join(opt.save_dir, f'checkpoint_epoch_{epoch + 1}.pth'))
+
+    try:
+        current_loss_G = model.loss_G.item()
+    except Exception:
+        current_loss_G = float('inf')
+
+    if current_loss_G < min_loss:
+        min_loss = current_loss_G
+        torch.save({
+            'opt': vars(opt),
+            'netG_A': model.netG_A.state_dict(),
+            'netG_B': model.netG_B.state_dict(),
+            'netD_A': model.netD_A.state_dict(),
+            'netD_B': model.netD_B.state_dict(),
+            'optimizer_G': optimizer_G.state_dict(),
+            'optimizer_D': optimizer_D.state_dict()
+        }, os.path.join(save_path, 'best_checkpoint.pth'))
+        print(f"Best model saved at epoch {epoch + 1} with Loss_G: {min_loss:.4f}")
+
+print("Training finished!")

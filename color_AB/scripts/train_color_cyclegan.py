@@ -6,8 +6,7 @@ import argparse
 import os
 from utils.replay_buffer import ImageBuffer
 
-fake_A_buffer = ImageBuffer(max_size=50)
-fake_B_buffer = ImageBuffer(max_size=50)
+
 # ---------------------------
 # 1. Arguments
 # ---------------------------
@@ -33,12 +32,13 @@ parser.add_argument('--ndf', type=int, default=16, help='number of discriminator
 parser.add_argument('--use_dropout', action='store_true', help='enable dropout in generator')
 parser.add_argument('--augment-dataset', default=False,
                     help='use data augmentation in the dataset')  # usually loss functions gives worse results with augmentation
-
 opt = parser.parse_args()
+
 opt.isTrain = True
 opt.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 os.makedirs(opt.save_dir, exist_ok=True)
+
 # ---------------------------
 # 2. Dataset and DataLoader
 # ---------------------------
@@ -62,10 +62,8 @@ dataloader = DataLoader(dataset, batch_size=opt.batch_size, shuffle=True)
 # 3. Model
 # ---------------------------
 model = ColorCycleGANModel(opt)
-model.netG_A.to(opt.device)
-model.netG_B.to(opt.device)
-model.netD_A.to(opt.device)
-model.netD_B.to(opt.device)
+model.to(opt.device)
+
 
 # Optimizers
 optimizer_G = torch.optim.Adam(
@@ -77,13 +75,19 @@ optimizer_D = torch.optim.Adam(
     lr=opt.lr, betas=(0.5, 0.999)
 )
 
+fake_A_buffer = ImageBuffer(max_size=50)
+fake_B_buffer = ImageBuffer(max_size=50)
+
 # ---------------------------
 # 4. Training
 # ---------------------------
 
 min_loss = float('inf')
+save_path = opt.save_dir
+
 for epoch in range(opt.epochs):
     for i, data in enumerate(dataloader):
+
         model.set_input(data)
         model.optimize_parameters(optimizer_G, optimizer_D, fake_A_buffer, fake_B_buffer)
         # --- Logging ---
@@ -113,7 +117,7 @@ for epoch in range(opt.epochs):
             'netD_B': model.netD_B.state_dict(),
             'optimizer_G': optimizer_G.state_dict(),
             'optimizer_D': optimizer_D.state_dict()
-        }, os.path.join(opt.save_dir, 'best_checkpoint.pth'))
+        }, os.path.join(save_path, 'best_checkpoint.pth'))
         print(f"Best model saved at epoch {epoch + 1} with Loss_G: {min_loss:.4f}")
 
 print("Training finished!")

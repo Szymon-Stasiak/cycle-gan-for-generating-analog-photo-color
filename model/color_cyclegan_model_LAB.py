@@ -12,9 +12,10 @@ class ColorCycleGANModel(BaseModel, nn.Module):
 
         self.opt = opt
 
-        # Generator: input_nc=3 (LAB), output_nc=3 (LAB)
+        self.device = opt.device
+
         self.netG_A = ResnetGenerator(
-            input_nc=opt.input_nc,  # 3 dla LAB
+            input_nc=opt.input_nc,
             output_nc=opt.output_nc,
             ngf=opt.ngf,
             use_dropout=opt.use_dropout
@@ -96,11 +97,12 @@ class ColorCycleGANModel(BaseModel, nn.Module):
         self.loss_D_B = self.backward_D_basic(self.netD_B, self.LAB_B, fake_B)
 
     def set_input(self, input):
-        device = next(self.parameters()).device
-        self.LAB_A = torch.cat([input['L_A'], input['AB_A']], dim=1).to(device)
-        self.LAB_B = torch.cat([input['L_B'], input['AB_B']], dim=1).to(device)
-        self.L_A = input['L_A'].to(device)
-        self.L_B = input['L_B'].to(device)
+        d = self.device
+        self.LAB_A = torch.cat([input['L_A'], input['AB_A']], dim=1).to(d)
+        self.LAB_B = torch.cat([input['L_B'], input['AB_B']], dim=1).to(d)
+        self.L_A = input['L_A'].to(d)
+        self.L_B = input['L_B'].to(d)
+
 
     def optimize_parameters(self, optimizer_G, optimizer_D, fake_A_buffer=None, fake_B_buffer=None):
         # forward

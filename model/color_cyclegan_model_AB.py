@@ -120,7 +120,9 @@ class ColorCycleGANModel(BaseModel, nn.Module):
 
     def transform_to_analog(self, AB_A):
         self.eval()
-        device = self.device
+
+        device = next(self.netG_A.parameters()).device
+
         if isinstance(AB_A, torch.Tensor):
             input_tensor = AB_A.to(device)
         else:
@@ -128,6 +130,7 @@ class ColorCycleGANModel(BaseModel, nn.Module):
 
         with torch.no_grad():
             fake_B = self.netG_A(input_tensor)
+
         return fake_B
 
 

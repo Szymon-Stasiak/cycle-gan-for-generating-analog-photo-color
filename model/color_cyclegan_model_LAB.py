@@ -120,23 +120,28 @@ class ColorCycleGANModel(BaseModel, nn.Module):
 
     def transform_to_analog(self, LAB_A):
         self.eval()
+
         device = next(self.netG_A.parameters()).device
-        if isinstance(LAB_A, torch.Tensor):
-            input_tensor = LAB_A.to(device)
-        else:
+
+        if not isinstance(LAB_A, torch.Tensor):
             raise TypeError("LAB_A must be a PyTorch tensor")
+
+        input_tensor = LAB_A.to(device)
 
         with torch.no_grad():
             fake_B = self.netG_A(input_tensor)
+
         return fake_B
 
     def inference(self, LAB_batch):
-
         self.eval()
+
         device = next(self.netG_A.parameters()).device
         LAB_batch = LAB_batch.to(device)
+
         with torch.no_grad():
             fake_LAB = self.netG_A(LAB_batch)
+
         return fake_LAB
 
 
